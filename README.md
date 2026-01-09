@@ -1,8 +1,12 @@
 # 🚀 OfficeSelect
 
 **Простой и удобный установщик нелицензионной Microsoft Office LTSC 2024 с выбором компонентов.**
-VirusTotal 1/61 ✅
+
+start.bat VirusTotal 1/61 ✅
 https://www.virustotal.com/gui/file/d8eb8acfa2cc622b3e36d57e02a2d7b6b20887ef7939043205f75902473deae7/detection
+
+setup.exe 0/71 ✅
+https://www.virustotal.com/gui/file/351515c5c720e0282e1bdd11543d2a0cf1a45910480ca45a1232ffd3dcdd1566
 
 ---
 
