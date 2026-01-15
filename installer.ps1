@@ -9,19 +9,9 @@ function Test-Admin {
 
 if (-not (Test-Admin)) {
     Write-Host "Требуются права администратора" -ForegroundColor Yellow
-    Write-Host "Перезапуск с повышенными привилегиями..." -ForegroundColor Yellow
-    Write-Host ""
+    Write-Host "Перезапуск..." -ForegroundColor Yellow
     
-    $scriptContent = @'
-$installerUrl = "https://raw.githubusercontent.com/xLeizuLqrd/OfficeSelect/main/install.ps1"
-try {
-    $script = Invoke-RestMethod -Uri $installerUrl
-    Invoke-Expression $script
-} catch {
-    Write-Host "Ошибка при загрузке скрипта: $_" -ForegroundColor Red
-    pause
-}
-'@
+    $scriptContent = '$url = "https://raw.githubusercontent.com/xLeizuLqrd/OfficeSelect/main/install.ps1"; $script = Invoke-RestMethod -Uri $url; Invoke-Expression $script'
     
     $tempFile = [System.IO.Path]::GetTempFileName() + ".ps1"
     $scriptContent | Out-File -FilePath $tempFile -Encoding UTF8
@@ -30,15 +20,11 @@ try {
     exit
 }
 
-Write-Host "Загрузка основного установщика..." -ForegroundColor Green
-Write-Host ""
-
 try {
     $installerUrl = "https://raw.githubusercontent.com/xLeizuLqrd/OfficeSelect/main/install.ps1"
     $scriptContent = Invoke-RestMethod -Uri $installerUrl
     Invoke-Expression $scriptContent
 } catch {
-    Write-Host "Ошибка при загрузке скрипта: $_" -ForegroundColor Red
-    Write-Host "Проверьте подключение к интернету." -ForegroundColor Yellow
+    Write-Host "Ошибка при загрузке: $_" -ForegroundColor Red
     pause
 }
