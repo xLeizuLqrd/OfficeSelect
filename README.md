@@ -15,6 +15,7 @@ https://www.virustotal.com/gui/file/f1e50c00c92d445ea3f06f790fbcdf771d4205a34f1b
 
 installer.ps1 0/61 ✅
 https://www.virustotal.com/gui/file/ed668fdf985a66684ec2d8f307c207b0f367084f7e37a20aa726e98149e30e70
+
 ---
 
 ## 📌 **Краткое описание**
