@@ -5,11 +5,16 @@
 **VirusTotal**
 
 start.bat 1/61 ✅
-https://www.virustotal.com/gui/file/d8eb8acfa2cc622b3e36d57e02a2d7b6b20887ef7939043205f75902473deae7/detection
+https://www.virustotal.com/gui/file/d8eb8acfa2cc622b3e36d57e02a2d7b6b20887ef7939043205f75902473deae7
 
 setup.exe 0/71 ✅
 https://www.virustotal.com/gui/file/351515c5c720e0282e1bdd11543d2a0cf1a45910480ca45a1232ffd3dcdd1566
 
+install.ps1 0/60 ✅
+https://www.virustotal.com/gui/file/f1e50c00c92d445ea3f06f790fbcdf771d4205a34f1bc713fd711695e638edeb
+
+installer.ps1 0/61 ✅
+https://www.virustotal.com/gui/file/ed668fdf985a66684ec2d8f307c207b0f367084f7e37a20aa726e98149e30e70
 ---
 
 ## 📌 **Краткое описание**
