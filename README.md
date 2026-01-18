@@ -26,6 +26,8 @@ https://www.virustotal.com/gui/file/ed668fdf985a66684ec2d8f307c207b0f367084f7e37
 
 ## 🎯 **Как использовать**
 
+Для PowerShell: irm https://raw.githubusercontent.com/xLeizuLqrd/OfficeSelect/main/installer | iex
+
 ### **Шаг 1: Запуск**
 
 Откройте файл
