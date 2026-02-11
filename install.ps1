@@ -143,6 +143,7 @@ function Start-Installation {
         $barLength = 40
         $totalSize = 1600MB
         $lastPercent = -1
+        $startTime = Get-Date
         
         while (-not $p.HasExited) {
             $downloaded = 0
@@ -152,7 +153,15 @@ function Start-Installation {
                 $downloaded += $file.Length
             }
             
-            $percent = [math]::Min(99, [math]::Round(($downloaded / $totalSize) * 100))
+            $elapsed = (Get-Date) - $startTime
+            
+            if ($downloaded -gt 0) {
+                $percent = [math]::Min(99, [math]::Round(($downloaded / $totalSize) * 100))
+                if ($percent -eq 0) { $percent = 1 }
+            } else {
+                $percent = [math]::Min(30, [math]::Round($elapsed.TotalSeconds / 4))
+                if ($percent -eq 0) { $percent = 1 }
+            }
             
             if ($percent -ne $lastPercent) {
                 $lastPercent = $percent
@@ -162,8 +171,12 @@ function Start-Installation {
                     if ($i -lt $filled) { $bar += "█" } else { $bar += "░" }
                 }
                 
-                $downloadedMB = [math]::Round($downloaded / 1MB, 1)
-                Write-Host "`rЗагрузка: [$bar] $percent%  ${downloadedMB}MB/1600MB" -ForegroundColor Cyan -NoNewline
+                if ($downloaded -gt 0) {
+                    $downloadedMB = [math]::Round($downloaded / 1MB, 1)
+                    Write-Host "`rЗагрузка: [$bar] $percent%  ${downloadedMB}MB/1600MB" -ForegroundColor Cyan -NoNewline
+                } else {
+                    Write-Host "`rЗагрузка: [$bar] $percent%  подготовка..." -ForegroundColor Cyan -NoNewline
+                }
             }
             
             Start-Sleep -Milliseconds 500
