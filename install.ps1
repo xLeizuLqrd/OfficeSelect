@@ -89,7 +89,7 @@ function Show-MainMenu {
 function Start-Installation {
     Clear-Host
     Write-Host "========================================" -ForegroundColor Cyan
-    Write-Host "          УСТАНОВКА OFFICE" -ForegroundColor White
+    Write-Host "          УСТАНОВКА OFFICE LTSC 2024" -ForegroundColor White
     Write-Host "========================================" -ForegroundColor Cyan
     Write-Host ""
     
@@ -100,14 +100,14 @@ function Start-Installation {
         $odtUrl = "https://download.microsoft.com/download/6c1eeb25-cf8b-41d9-8d0d-cc1dbc032140/officedeploymenttool_19628-20192.exe"
         $odtPath = Join-Path $workDir "ODTSetup.exe"
         
-        $progressPreference = 'SilentlyContinue'
         Invoke-WebRequest -Uri $odtUrl -OutFile $odtPath -UseBasicParsing
-        $progressPreference = 'Continue'
         
         $extractDir = Join-Path $workDir "OfficeSetup"
         New-Item -ItemType Directory -Path $extractDir -Force | Out-Null
         Start-Process -FilePath $odtPath -ArgumentList "/extract:`"$extractDir`" /quiet" -Wait -NoNewWindow
         $setupPath = Join-Path $extractDir "setup.exe"
+        
+        $appMap = @{1="Word";2="Excel";3="PowerPoint";4="Outlook";5="Access";6="Publisher";7="OneNote";8="OneDrive";9="Teams";10="Lync"}
         
         $xmlContent = @()
         $xmlContent += '<?xml version="1.0" encoding="utf-8"?>'
@@ -117,7 +117,6 @@ function Start-Installation {
         $xmlContent += '      <Language ID="ru-ru" />'
         
         if (-not $script:InstallAll) {
-            $appMap = @{1="Word";2="Excel";3="PowerPoint";4="Outlook";5="Access";6="Publisher";7="OneNote";8="OneDrive";9="Teams";10="Lync"}
             foreach ($appNum in 1..10) {
                 if ($appNum -notin $script:SelectedApps) {
                     $xmlContent += "      <ExcludeApp ID=`"$($appMap[$appNum])`" />"
@@ -151,36 +150,38 @@ function Start-Installation {
         $p = [System.Diagnostics.Process]::Start($psi)
         
         $barLength = 40
-        $startTime = Get-Date
-        $maxSeconds = 1200
+        $lastPercent = 0
         
         while (-not $p.HasExited) {
-            $elapsed = (Get-Date) - $startTime
-            $percent = [math]::Min(99, [math]::Round(($elapsed.TotalSeconds / $maxSeconds) * 100))
-            $percent = [math]::Max(1, $percent)
+            $cabFiles = Get-ChildItem "$env:TEMP\*_stream*.cab" -ErrorAction SilentlyContinue | Where-Object { $_.Length -gt 0 }
+            $totalSize = 0
+            $maxSize = 1600MB
             
-            $filled = [math]::Floor(($percent / 100) * $barLength)
-            $bar = ""
-            for ($i = 0; $i -lt $barLength; $i++) {
-                if ($i -lt $filled) { $bar += "█" } else { $bar += "░" }
+            foreach ($file in $cabFiles) {
+                $totalSize += $file.Length
             }
             
-            $minutes = [math]::Floor($elapsed.TotalMinutes)
-            $seconds = $elapsed.Seconds.ToString("00")
-            
-            Write-Host "`rПрогресс: [$bar] $percent%   ${minutes}:$seconds" -ForegroundColor Cyan -NoNewline
-            
-            Start-Sleep -Milliseconds 500
+            $percent = [math]::Min(99, [math]::Round(($totalSize / $maxSize) * 100))
+            if ($percent -gt $lastPercent) {
+                $lastPercent = $percent
+                $filled = [math]::Floor(($percent / 100) * $barLength)
+                $bar = ""
+                for ($i = 0; $i -lt $barLength; $i++) {
+                    if ($i -lt $filled) { $bar += "█" } else { $bar += "░" }
+                }
+                Write-Host "`rЗагрузка: [$bar] $percent%   " -ForegroundColor Cyan -NoNewline
+            }
+            Start-Sleep -Milliseconds 300
         }
         
         $exitCode = $p.ExitCode
         
-        Write-Host "`rПрогресс: [$('█'*$barLength)] 100%   $([math]::Floor(((Get-Date) - $startTime).TotalMinutes)):$([math]::Floor(((Get-Date) - $startTime).TotalSeconds % 60).ToString('00'))" -ForegroundColor Green
+        Write-Host "`rЗагрузка: [$('█'*$barLength)] 100%   " -ForegroundColor Green
         Write-Host ""
         Write-Host ""
         
         if ($exitCode -eq 0 -or $exitCode -eq 3010 -or $exitCode -eq 17002) {
-            Write-Host "✅ Установка завершена успешно!" -ForegroundColor Green
+            Write-Host "✅ Установка Office LTSC 2024 завершена!" -ForegroundColor Green
         } else {
             Write-Host "❌ Ошибка установки (код: $exitCode)" -ForegroundColor Red
         }
