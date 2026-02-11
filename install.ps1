@@ -97,8 +97,7 @@ function Start-Installation {
     New-Item -ItemType Directory -Path $workDir -Force | Out-Null
     
     try {
-        Write-Host "▶ Подготовка..." -ForegroundColor Gray
-        $odtUrl = "https://download.microsoft.com/download/6c1eeb25-cf8b-41d9-8d0d-cc1dbc032140/officedeploymenttool_19426-20170.exe"
+        $odtUrl = "https://download.microsoft.com/download/6c1eeb25-cf8b-41d9-8d0d-cc1dbc032140/officedeploymenttool_19628-20192.exe"
         $odtPath = Join-Path $workDir "ODTSetup.exe"
         
         $progressPreference = 'SilentlyContinue'
@@ -149,46 +148,34 @@ function Start-Installation {
         $psi.CreateNoWindow = $true
         $psi.WorkingDirectory = $workDir
         
-        Clear-Host
-        Write-Host "========================================" -ForegroundColor Cyan
-        Write-Host "          УСТАНОВКА OFFICE" -ForegroundColor White
-        Write-Host "========================================" -ForegroundColor Cyan
-        Write-Host ""
-        
         $p = [System.Diagnostics.Process]::Start($psi)
         
-        $logPath = "$env:TEMP\office_setup.log"
-        $lastSize = 0
-        $counter = 0
+        $barLength = 40
+        $startTime = Get-Date
+        $maxSeconds = 1200
         
         while (-not $p.HasExited) {
-            Start-Sleep -Milliseconds 200
+            $elapsed = (Get-Date) - $startTime
+            $percent = [math]::Min(99, [math]::Round(($elapsed.TotalSeconds / $maxSeconds) * 100))
+            $percent = [math]::Max(1, $percent)
             
-            if (Test-Path $logPath) {
-                $currentSize = (Get-Item $logPath).Length
-                if ($currentSize -gt $lastSize) {
-                    $lastSize = $currentSize
-                    $percent = [math]::Min(99, [math]::Round($currentSize / 20MB * 100))
-                    
-                    $bar = ""
-                    $barLength = 40
-                    $filled = [math]::Floor(($percent / 100) * $barLength)
-                    for ($i = 0; $i -lt $barLength; $i++) {
-                        if ($i -lt $filled) { $bar += "█" } else { $bar += "░" }
-                    }
-                    
-                    Write-Host "`rПрогресс: [$bar] $percent%   " -ForegroundColor Cyan -NoNewline
-                }
-            } else {
-                $counter++
-                $dot = "." * (($counter % 3) + 1)
-                Write-Host "`rЗапуск установки$dot   " -ForegroundColor Yellow -NoNewline
+            $filled = [math]::Floor(($percent / 100) * $barLength)
+            $bar = ""
+            for ($i = 0; $i -lt $barLength; $i++) {
+                if ($i -lt $filled) { $bar += "█" } else { $bar += "░" }
             }
+            
+            $minutes = [math]::Floor($elapsed.TotalMinutes)
+            $seconds = $elapsed.Seconds.ToString("00")
+            
+            Write-Host "`rПрогресс: [$bar] $percent%   ${minutes}:$seconds" -ForegroundColor Cyan -NoNewline
+            
+            Start-Sleep -Milliseconds 500
         }
         
         $exitCode = $p.ExitCode
         
-        Write-Host "`rПрогресс: [$('█'*40)] 100%   " -ForegroundColor Green
+        Write-Host "`rПрогресс: [$('█'*$barLength)] 100%   $([math]::Floor(((Get-Date) - $startTime).TotalMinutes)):$([math]::Floor(((Get-Date) - $startTime).TotalSeconds % 60).ToString('00'))" -ForegroundColor Green
         Write-Host ""
         Write-Host ""
         
@@ -203,7 +190,6 @@ function Start-Installation {
         Write-Host "❌ Ошибка: $_" -ForegroundColor Red
     } finally {
         Remove-Item -Path $workDir -Recurse -Force -ErrorAction SilentlyContinue
-        Remove-Item $logPath -ErrorAction SilentlyContinue
     }
     
     Write-Host ""
