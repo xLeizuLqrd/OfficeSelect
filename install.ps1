@@ -3,14 +3,6 @@ $Host.UI.RawUI.WindowTitle = "Установщик Microsoft Office"
 
 function Show-ModeMenu {
     Clear-Host
-    Write-Host "        :::    :::       :::        ::::::::::       :::::::::::       :::::::::      :::    :::" -ForegroundColor Cyan
-    Write-Host "       :+:    :+:       :+:        :+:                  :+:                :+:       :+:    :+:" -ForegroundColor Cyan
-    Write-Host "       +:+  +:+        +:+        +:+                  +:+               +:+        +:+    +:+ " -ForegroundColor Cyan
-    Write-Host "       +#++:+         +#+        +#++:++#             +#+              +#+         +#+    +:+  " -ForegroundColor Cyan
-    Write-Host "     +#+  +#+        +#+        +#+                  +#+             +#+          +#+    +#+   " -ForegroundColor Cyan
-    Write-Host "   #+#    #+#       #+#        #+#                  #+#            #+#           #+#    #+#    " -ForegroundColor Cyan
-    Write-Host "  ###    ###       ########## ##########       ###########       #########       ########      " -ForegroundColor Cyan
-    Write-Host ""
     Write-Host "========================================" -ForegroundColor Cyan
     Write-Host "     ВЫБОР РЕЖИМА УСТАНОВКИ" -ForegroundColor White
     Write-Host "========================================" -ForegroundColor Cyan
@@ -25,20 +17,20 @@ function Show-ModeMenu {
         $mode = Read-Host "Выберите режим (1 или 2)"
         
         switch ($mode) {
-            "1" {
+            "1" { 
                 $script:RemoveMSI = $true
-                $script:ModeName = "ПОЛНАЯ УСТАНОВКА"
+                $script:ModeName = "ПОЛНАЯ"
                 Show-MainMenu
-                return
+                return 
             }
-            "2" {
+            "2" { 
                 $script:RemoveMSI = $false
-                $script:ModeName = "ДОБАВЛЕНИЕ ПРОГРАММ"
+                $script:ModeName = "ДОБАВЛЕНИЕ"
                 Show-MainMenu
-                return
+                return 
             }
-            default {
-                Write-Host "Ошибка: Неверный выбор! Введите 1 или 2" -ForegroundColor Red
+            default { 
+                Write-Host "Ошибка! Введите 1 или 2" -ForegroundColor Red 
             }
         }
     } while ($true)
@@ -47,10 +39,8 @@ function Show-ModeMenu {
 function Show-MainMenu {
     Clear-Host
     Write-Host "========================================" -ForegroundColor Cyan
-    Write-Host "     ВЫБОР ПРОГРАММ MICROSOFT OFFICE" -ForegroundColor White
+    Write-Host "     ВЫБОР ПРОГРАММ" -ForegroundColor White
     Write-Host "========================================" -ForegroundColor Cyan
-    Write-Host ""
-    Write-Host "Выберите цифры через пробел:" -ForegroundColor Gray
     Write-Host ""
     Write-Host "[1] Word       [2] Excel" -ForegroundColor Yellow
     Write-Host "[3] PowerPoint [4] Outlook" -ForegroundColor Yellow
@@ -59,7 +49,7 @@ function Show-MainMenu {
     Write-Host "[9] Teams      [10] Lync" -ForegroundColor Yellow
     Write-Host "[0] Назад" -ForegroundColor Yellow
     Write-Host ""
-    Write-Host "Просто Enter - установить все программы" -ForegroundColor Gray
+    Write-Host "Enter - все программы" -ForegroundColor Gray
     Write-Host "РЕЖИМ: $($script:ModeName)" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "========================================" -ForegroundColor Cyan
@@ -67,9 +57,9 @@ function Show-MainMenu {
     
     $input = Read-Host "Ваш выбор"
     
-    if ($input -eq "0") {
+    if ($input -eq "0") { 
         Show-ModeMenu
-        return
+        return 
     }
     
     if ([string]::IsNullOrWhiteSpace($input)) {
@@ -79,18 +69,17 @@ function Show-MainMenu {
         if ($input -match '^[0-9\s]+$') {
             $script:InstallAll = $false
             $script:SelectedApps = $input -split '\s+' | ForEach-Object { [int]$_ } | Where-Object { $_ -ge 1 -and $_ -le 10 }
-            
-            if ($script:SelectedApps.Count -eq 0) {
-                Write-Host "Ошибка: Неверный ввод!" -ForegroundColor Red
-                Start-Sleep -Seconds 2
+            if ($script:SelectedApps.Count -eq 0) { 
+                Write-Host "Ошибка!" -ForegroundColor Red
+                Start-Sleep 1
                 Show-MainMenu
-                return
+                return 
             }
-        } else {
-            Write-Host "Ошибка: Неверный формат ввода!" -ForegroundColor Red
-            Start-Sleep -Seconds 2
+        } else { 
+            Write-Host "Ошибка!" -ForegroundColor Red
+            Start-Sleep 1
             Show-MainMenu
-            return
+            return 
         }
     }
     
@@ -98,7 +87,12 @@ function Show-MainMenu {
 }
 
 function Start-Installation {
-
+    Clear-Host
+    Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host "     УСТАНОВКА OFFICE" -ForegroundColor White
+    Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host ""
+    
     $workDir = "$env:TEMP\OfficeInstall_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
     New-Item -ItemType Directory -Path $workDir -Force | Out-Null
     
@@ -123,13 +117,8 @@ function Start-Installation {
         $xmlContent += '      <Language ID="ru-ru" />'
         
         if (-not $script:InstallAll) {
-            $appMap = @{
-                1 = "Word"; 2 = "Excel"; 3 = "PowerPoint"; 4 = "Outlook"
-                5 = "Access"; 6 = "Publisher"; 7 = "OneNote"; 8 = "OneDrive"
-                9 = "Teams"; 10 = "Lync"
-            }
-            $allApps = 1..10
-            foreach ($appNum in $allApps) {
+            $appMap = @{1="Word";2="Excel";3="PowerPoint";4="Outlook";5="Access";6="Publisher";7="OneNote";8="OneDrive";9="Teams";10="Lync"}
+            foreach ($appNum in 1..10) {
                 if ($appNum -notin $script:SelectedApps) {
                     $xmlContent += "      <ExcludeApp ID=`"$($appMap[$appNum])`" />"
                 }
@@ -138,26 +127,18 @@ function Start-Installation {
         
         $xmlContent += '    </Product>'
         $xmlContent += '  </Add>'
-        if ($script:RemoveMSI) { $xmlContent += '  <RemoveMSI />' }
+        
+        # ТОЛЬКО для режима 1 - полная установка с удалением
+        if ($script:RemoveMSI) {
+            $xmlContent += '  <RemoveMSI />'
+        }
+        
         $xmlContent += '  <Display Level="None" AcceptEULA="TRUE" />'
         $xmlContent += '  <Property Name="AUTOACTIVATE" Value="1" />'
         $xmlContent += '  <Property Name="FORCEAPPSHUTDOWN" Value="TRUE" />'
         $xmlContent += '</Configuration>'
         
         $xmlContent | Out-File -FilePath "$workDir\configuration.xml" -Encoding UTF8 -Force
-        
-        $officeProcesses = @("winword", "excel", "powerpnt", "outlook", "msaccess", "onenote", "mspub")
-        foreach ($process in $officeProcesses) {
-            Get-Process -Name $process -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-        }
-        
-        Clear-Host
-        Write-Host "========================================" -ForegroundColor Cyan
-        Write-Host "     УСТАНОВКА MICROSOFT OFFICE" -ForegroundColor White
-        Write-Host "========================================" -ForegroundColor Cyan
-        Write-Host ""
-        Write-Host "Установка Microsoft Office начата..." -ForegroundColor Green
-        Write-Host ""
         
         $psi = New-Object System.Diagnostics.ProcessStartInfo
         $psi.FileName = $setupPath
@@ -170,53 +151,55 @@ function Start-Installation {
         
         $p = [System.Diagnostics.Process]::Start($psi)
         
-        $totalSeconds = 0
-        $maxSeconds = 1800
+        $logPath = "$env:TEMP\office_setup.log"
+        $lastSize = 0
         
         while (-not $p.HasExited) {
-            $totalSeconds++
-            $percent = [math]::Min(100, [math]::Round(($totalSeconds / $maxSeconds) * 100))
+            Start-Sleep -Milliseconds 500
             
-            $bar = ""
-            $barLength = 50
-            $filled = [math]::Floor(($percent / 100) * $barLength)
-            
-            for ($i = 0; $i -lt $barLength; $i++) {
-                if ($i -lt $filled) { $bar += "█" } else { $bar += "░" }
+            if (Test-Path $logPath) {
+                $currentSize = (Get-Item $logPath).Length
+                if ($currentSize -gt $lastSize) {
+                    $lastSize = $currentSize
+                    
+                    $percent = [math]::Min(99, [math]::Round($currentSize / 15MB * 100))
+                    
+                    $bar = ""
+                    $barLength = 50
+                    $filled = [math]::Floor(($percent / 100) * $barLength)
+                    for ($i = 0; $i -lt $barLength; $i++) {
+                        if ($i -lt $filled) { $bar += "█" } else { $bar += "░" }
+                    }
+                    
+                    Write-Host "`rЗагрузка и установка: [$bar] $percent%  " -ForegroundColor Cyan -NoNewline
+                }
             }
-            
-            $minutes = [math]::Floor($totalSeconds / 60)
-            $seconds = $totalSeconds % 60
-            
-            Write-Host "`rЗагрузка и установка: [$bar] $percent%  ${minutes}:$($seconds.ToString('00'))" -ForegroundColor Cyan -NoNewline
-            
-            Start-Sleep -Seconds 1
         }
-        
-        Write-Host ""
-        Write-Host ""
         
         $exitCode = $p.ExitCode
         
+        Write-Host "`rЗагрузка и установка: [$('█'*50)] 100%  " -ForegroundColor Green
+        Write-Host ""
+        Write-Host ""
+        
         if ($exitCode -eq 0 -or $exitCode -eq 3010 -or $exitCode -eq 17002) {
-            Write-Host "✓ Установка завершена успешно!" -ForegroundColor Green
+            Write-Host "Установка завершена успешно!" -ForegroundColor Green
         } else {
-            Write-Host "✗ Ошибка установки (код: $exitCode)" -ForegroundColor Red
+            Write-Host "Ошибка установки (код: $exitCode)" -ForegroundColor Red
         }
         
     } catch {
         Write-Host ""
-        Write-Host "✗ Ошибка: $_" -ForegroundColor Red
+        Write-Host "Ошибка: $_" -ForegroundColor Red
     } finally {
-        try {
-            Remove-Item -Path $workDir -Recurse -Force -ErrorAction SilentlyContinue
-        } catch {}
+        Remove-Item -Path $workDir -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item $logPath -ErrorAction SilentlyContinue
     }
     
     Write-Host ""
     Write-Host "========================================" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "[1] Вернуться в главное меню" -ForegroundColor Yellow
+    Write-Host "[1] В главное меню" -ForegroundColor Yellow
     Write-Host "[2] Выход" -ForegroundColor Yellow
     Write-Host ""
     
@@ -225,7 +208,7 @@ function Start-Installation {
         switch ($choice) {
             "1" { Show-ModeMenu; return }
             "2" { exit }
-            default { Write-Host "Неверный выбор. Введите 1 или 2" -ForegroundColor Red }
+            default { Write-Host "1 или 2" -ForegroundColor Red }
         }
     } while ($true)
 }
