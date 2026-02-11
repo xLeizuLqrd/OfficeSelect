@@ -89,7 +89,7 @@ function Show-MainMenu {
 function Start-Installation {
     Clear-Host
     Write-Host "========================================" -ForegroundColor Cyan
-    Write-Host "     УСТАНОВКА OFFICE" -ForegroundColor White
+    Write-Host "          УСТАНОВКА OFFICE" -ForegroundColor White
     Write-Host "========================================" -ForegroundColor Cyan
     Write-Host ""
     
@@ -97,7 +97,8 @@ function Start-Installation {
     New-Item -ItemType Directory -Path $workDir -Force | Out-Null
     
     try {
-        $odtUrl = "https://download.microsoft.com/download/6c1eeb25-cf8b-41d9-8d0d-cc1dbc032140/officedeploymenttool_19628-20192.exe"
+        Write-Host "▶ Подготовка..." -ForegroundColor Gray
+        $odtUrl = "https://download.microsoft.com/download/6c1eeb25-cf8b-41d9-8d0d-cc1dbc032140/officedeploymenttool_19426-20170.exe"
         $odtPath = Join-Path $workDir "ODTSetup.exe"
         
         $progressPreference = 'SilentlyContinue'
@@ -128,7 +129,6 @@ function Start-Installation {
         $xmlContent += '    </Product>'
         $xmlContent += '  </Add>'
         
-        # ТОЛЬКО для режима 1 - полная установка с удалением
         if ($script:RemoveMSI) {
             $xmlContent += '  <RemoveMSI />'
         }
@@ -149,48 +149,58 @@ function Start-Installation {
         $psi.CreateNoWindow = $true
         $psi.WorkingDirectory = $workDir
         
+        Clear-Host
+        Write-Host "========================================" -ForegroundColor Cyan
+        Write-Host "          УСТАНОВКА OFFICE" -ForegroundColor White
+        Write-Host "========================================" -ForegroundColor Cyan
+        Write-Host ""
+        
         $p = [System.Diagnostics.Process]::Start($psi)
         
         $logPath = "$env:TEMP\office_setup.log"
         $lastSize = 0
+        $counter = 0
         
         while (-not $p.HasExited) {
-            Start-Sleep -Milliseconds 500
+            Start-Sleep -Milliseconds 200
             
             if (Test-Path $logPath) {
                 $currentSize = (Get-Item $logPath).Length
                 if ($currentSize -gt $lastSize) {
                     $lastSize = $currentSize
-                    
-                    $percent = [math]::Min(99, [math]::Round($currentSize / 15MB * 100))
+                    $percent = [math]::Min(99, [math]::Round($currentSize / 20MB * 100))
                     
                     $bar = ""
-                    $barLength = 50
+                    $barLength = 40
                     $filled = [math]::Floor(($percent / 100) * $barLength)
                     for ($i = 0; $i -lt $barLength; $i++) {
                         if ($i -lt $filled) { $bar += "█" } else { $bar += "░" }
                     }
                     
-                    Write-Host "`rЗагрузка и установка: [$bar] $percent%  " -ForegroundColor Cyan -NoNewline
+                    Write-Host "`rПрогресс: [$bar] $percent%   " -ForegroundColor Cyan -NoNewline
                 }
+            } else {
+                $counter++
+                $dot = "." * (($counter % 3) + 1)
+                Write-Host "`rЗапуск установки$dot   " -ForegroundColor Yellow -NoNewline
             }
         }
         
         $exitCode = $p.ExitCode
         
-        Write-Host "`rЗагрузка и установка: [$('█'*50)] 100%  " -ForegroundColor Green
+        Write-Host "`rПрогресс: [$('█'*40)] 100%   " -ForegroundColor Green
         Write-Host ""
         Write-Host ""
         
         if ($exitCode -eq 0 -or $exitCode -eq 3010 -or $exitCode -eq 17002) {
-            Write-Host "Установка завершена успешно!" -ForegroundColor Green
+            Write-Host "✅ Установка завершена успешно!" -ForegroundColor Green
         } else {
-            Write-Host "Ошибка установки (код: $exitCode)" -ForegroundColor Red
+            Write-Host "❌ Ошибка установки (код: $exitCode)" -ForegroundColor Red
         }
         
     } catch {
         Write-Host ""
-        Write-Host "Ошибка: $_" -ForegroundColor Red
+        Write-Host "❌ Ошибка: $_" -ForegroundColor Red
     } finally {
         Remove-Item -Path $workDir -Recurse -Force -ErrorAction SilentlyContinue
         Remove-Item $logPath -ErrorAction SilentlyContinue
@@ -208,7 +218,7 @@ function Start-Installation {
         switch ($choice) {
             "1" { Show-ModeMenu; return }
             "2" { exit }
-            default { Write-Host "1 или 2" -ForegroundColor Red }
+            default { Write-Host "Введите 1 или 2" -ForegroundColor Red }
         }
     } while ($true)
 }
