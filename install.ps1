@@ -7,7 +7,7 @@ function Show-ModeMenu {
     Write-Host "     ВЫБОР РЕЖИМА УСТАНОВКИ" -ForegroundColor White
     Write-Host "========================================" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "[1] Полная установка (удалит старый Office)" -ForegroundColor Yellow
+    Write-Host "[1] Полная установка (удалит старый MSI Office)" -ForegroundColor Yellow
     Write-Host "[2] Добавить программы к существующему Office" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "========================================" -ForegroundColor Cyan
@@ -15,23 +15,10 @@ function Show-ModeMenu {
     
     do {
         $mode = Read-Host "Выберите режим (1 или 2)"
-        
         switch ($mode) {
-            "1" { 
-                $script:RemoveMSI = $true
-                $script:ModeName = "ПОЛНАЯ"
-                Show-MainMenu
-                return 
-            }
-            "2" { 
-                $script:RemoveMSI = $false
-                $script:ModeName = "ДОБАВЛЕНИЕ"
-                Show-MainMenu
-                return 
-            }
-            default { 
-                Write-Host "Ошибка! Введите 1 или 2" -ForegroundColor Red 
-            }
+            "1" { $script:RemoveMSI = $true; $script:ModeName = "ПОЛНАЯ"; Show-MainMenu; return }
+            "2" { $script:RemoveMSI = $false; $script:ModeName = "ДОБАВЛЕНИЕ"; Show-MainMenu; return }
+            default { Write-Host "Ошибка! Введите 1 или 2" -ForegroundColor Red }
         }
     } while ($true)
 }
@@ -56,11 +43,7 @@ function Show-MainMenu {
     Write-Host ""
     
     $input = Read-Host "Ваш выбор"
-    
-    if ($input -eq "0") { 
-        Show-ModeMenu
-        return 
-    }
+    if ($input -eq "0") { Show-ModeMenu; return }
     
     if ([string]::IsNullOrWhiteSpace($input)) {
         $script:InstallAll = $true
@@ -69,18 +52,8 @@ function Show-MainMenu {
         if ($input -match '^[0-9\s]+$') {
             $script:InstallAll = $false
             $script:SelectedApps = $input -split '\s+' | ForEach-Object { [int]$_ } | Where-Object { $_ -ge 1 -and $_ -le 10 }
-            if ($script:SelectedApps.Count -eq 0) { 
-                Write-Host "Ошибка!" -ForegroundColor Red
-                Start-Sleep 1
-                Show-MainMenu
-                return 
-            }
-        } else { 
-            Write-Host "Ошибка!" -ForegroundColor Red
-            Start-Sleep 1
-            Show-MainMenu
-            return 
-        }
+            if ($script:SelectedApps.Count -eq 0) { Write-Host "Ошибка!" -ForegroundColor Red; Start-Sleep 1; Show-MainMenu; return }
+        } else { Write-Host "Ошибка!" -ForegroundColor Red; Start-Sleep 1; Show-MainMenu; return }
     }
     
     Start-Installation
@@ -89,7 +62,7 @@ function Show-MainMenu {
 function Start-Installation {
     Clear-Host
     Write-Host "========================================" -ForegroundColor Cyan
-    Write-Host "          УСТАНОВКА OFFICE LTSC 2024" -ForegroundColor White
+    Write-Host "     УСТАНОВКА OFFICE LTSC 2024" -ForegroundColor White
     Write-Host "========================================" -ForegroundColor Cyan
     Write-Host ""
     
@@ -99,7 +72,6 @@ function Start-Installation {
     try {
         $odtUrl = "https://download.microsoft.com/download/6c1eeb25-cf8b-41d9-8d0d-cc1dbc032140/officedeploymenttool_19628-20192.exe"
         $odtPath = Join-Path $workDir "ODTSetup.exe"
-        
         Invoke-WebRequest -Uri $odtUrl -OutFile $odtPath -UseBasicParsing
         
         $extractDir = Join-Path $workDir "OfficeSetup"
@@ -115,6 +87,8 @@ function Start-Installation {
         $xmlContent += '  <Add OfficeClientEdition="64" Channel="PerpetualVL2024">'
         $xmlContent += '    <Product ID="ProPlus2024Volume">'
         $xmlContent += '      <Language ID="ru-ru" />'
+        $xmlContent += '      <ExcludeApp ID="Groove" />'
+        $xmlContent += '      <ExcludeApp ID="Bing" />'
         
         if (-not $script:InstallAll) {
             foreach ($appNum in 1..10) {
@@ -131,6 +105,8 @@ function Start-Installation {
             $xmlContent += '  <RemoveMSI />'
         }
         
+        $xmlContent += '  <MigrateArchitecture>TRUE</MigrateArchitecture>'
+        $xmlContent += '  <Property Name="SharedComputerLicensing" Value="0" />'
         $xmlContent += '  <Display Level="None" AcceptEULA="TRUE" />'
         $xmlContent += '  <Property Name="AUTOACTIVATE" Value="1" />'
         $xmlContent += '  <Property Name="FORCEAPPSHUTDOWN" Value="TRUE" />'
@@ -150,33 +126,59 @@ function Start-Installation {
         $p = [System.Diagnostics.Process]::Start($psi)
         
         $barLength = 40
-        $lastPercent = 0
+        $targetSize = 0
+        $downloaded = 0
         
         while (-not $p.HasExited) {
-            $cabFiles = Get-ChildItem "$env:TEMP\*_stream*.cab" -ErrorAction SilentlyContinue | Where-Object { $_.Length -gt 0 }
-            $totalSize = 0
-            $maxSize = 1600MB
+            $cabFiles = Get-ChildItem "$env:TEMP\*.cab" -ErrorAction SilentlyContinue | Where-Object { $_.Name -match "stream" -and $_.Length -gt 0 }
             
-            foreach ($file in $cabFiles) {
-                $totalSize += $file.Length
+            if ($cabFiles.Count -gt 0 -and $targetSize -eq 0) {
+                foreach ($file in $cabFiles) {
+                    try {
+                        $content = [System.IO.File]::ReadAllText($file.FullName) -replace "`0", ""
+                        if ($content -match "url=(.*?\.cab)") {
+                            $head = Invoke-WebRequest -Uri $matches[1] -Method Head -UseBasicParsing -ErrorAction SilentlyContinue
+                            if ($head.Headers.'Content-Length') {
+                                $targetSize = [int]$head.Headers.'Content-Length'
+                                break
+                            }
+                        }
+                    } catch {}
+                }
             }
             
-            $percent = [math]::Min(99, [math]::Round(($totalSize / $maxSize) * 100))
-            if ($percent -gt $lastPercent) {
-                $lastPercent = $percent
+            $downloaded = 0
+            $cabFiles = Get-ChildItem "$env:TEMP\*.cab" -ErrorAction SilentlyContinue | Where-Object { $_.Name -match "stream" }
+            foreach ($file in $cabFiles) {
+                $downloaded += $file.Length
+            }
+            
+            if ($targetSize -gt 0 -and $downloaded -gt 0) {
+                $percent = [math]::Min(99, [math]::Round(($downloaded / $targetSize) * 100))
                 $filled = [math]::Floor(($percent / 100) * $barLength)
                 $bar = ""
                 for ($i = 0; $i -lt $barLength; $i++) {
                     if ($i -lt $filled) { $bar += "█" } else { $bar += "░" }
                 }
-                Write-Host "`rЗагрузка: [$bar] $percent%   " -ForegroundColor Cyan -NoNewline
+                
+                $downloadedMB = [math]::Round($downloaded / 1MB, 1)
+                $totalMB = [math]::Round($targetSize / 1MB, 1)
+                Write-Host "`rЗагрузка: [$bar] $percent%  ${downloadedMB}MB/${totalMB}MB" -ForegroundColor Cyan -NoNewline
+            } else {
+                Write-Host "`rЗагрузка: [$('░'*$barLength)] 0%   0MB/??MB" -ForegroundColor Cyan -NoNewline
             }
-            Start-Sleep -Milliseconds 300
+            
+            Start-Sleep -Milliseconds 500
         }
         
         $exitCode = $p.ExitCode
         
-        Write-Host "`rЗагрузка: [$('█'*$barLength)] 100%   " -ForegroundColor Green
+        if ($targetSize -gt 0) {
+            Write-Host "`rЗагрузка: [$('█'*$barLength)] 100%  $([math]::Round($downloaded/1MB,1))MB/$([math]::Round($targetSize/1MB,1))MB" -ForegroundColor Green
+        } else {
+            Write-Host "`rЗагрузка: [$('█'*$barLength)] 100%  " -ForegroundColor Green
+        }
+        
         Write-Host ""
         Write-Host ""
         
