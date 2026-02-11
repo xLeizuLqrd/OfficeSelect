@@ -7,7 +7,7 @@ function Show-ModeMenu {
     Write-Host "     ВЫБОР РЕЖИМА УСТАНОВКИ" -ForegroundColor White
     Write-Host "========================================" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "[1] Полная установка (удалит старый MSI Office)" -ForegroundColor Yellow
+    Write-Host "[1] Полная установка (удалит старый Office)" -ForegroundColor Yellow
     Write-Host "[2] Добавить программы к существующему Office" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "========================================" -ForegroundColor Cyan
@@ -16,8 +16,8 @@ function Show-ModeMenu {
     do {
         $mode = Read-Host "Выберите режим (1 или 2)"
         switch ($mode) {
-            "1" { $script:RemoveMSI = $true; $script:ModeName = "ПОЛНАЯ"; Show-MainMenu; return }
-            "2" { $script:RemoveMSI = $false; $script:ModeName = "ДОБАВЛЕНИЕ"; Show-MainMenu; return }
+            "1" { $script:FullInstall = $true; $script:ModeName = "ПОЛНАЯ"; Show-MainMenu; return }
+            "2" { $script:FullInstall = $false; $script:ModeName = "ДОБАВЛЕНИЕ"; Show-MainMenu; return }
             default { Write-Host "Ошибка! Введите 1 или 2" -ForegroundColor Red }
         }
     } while ($true)
@@ -84,29 +84,44 @@ function Start-Installation {
         $xmlContent = @()
         $xmlContent += '<?xml version="1.0" encoding="utf-8"?>'
         $xmlContent += '<Configuration>'
-        $xmlContent += '  <Add OfficeClientEdition="64" Channel="PerpetualVL2024">'
-        $xmlContent += '    <Product ID="ProPlus2024Volume">'
-        $xmlContent += '      <Language ID="ru-ru" />'
-        $xmlContent += '      <ExcludeApp ID="Groove" />'
-        $xmlContent += '      <ExcludeApp ID="Bing" />'
         
-        if (-not $script:InstallAll) {
-            foreach ($appNum in 1..10) {
+        if ($script:FullInstall) {
+            $xmlContent += '  <Add OfficeClientEdition="64" Channel="PerpetualVL2024">'
+            $xmlContent += '    <Product ID="ProPlus2024Volume">'
+            $xmlContent += '      <Language ID="ru-ru" />'
+            $xmlContent += '      <ExcludeApp ID="Groove" />'
+            $xmlContent += '      <ExcludeApp ID="Bing" />'
+            
+            if (-not $script:InstallAll) {
+                foreach ($appNum in 1..10) {
+                    if ($appNum -notin $script:SelectedApps) {
+                        $xmlContent += "      <ExcludeApp ID=`"$($appMap[$appNum])`" />"
+                    }
+                }
+            }
+            
+            $xmlContent += '    </Product>'
+            $xmlContent += '  </Add>'
+            $xmlContent += '  <RemoveMSI />'
+        } else {
+            $xmlContent += '  <Add OfficeClientEdition="64" Channel="PerpetualVL2024">'
+            $xmlContent += '    <Product ID="ProPlus2024Volume">'
+            $xmlContent += '      <Language ID="ru-ru" />'
+            $xmlContent += '      <ExcludeApp ID="Groove" />'
+            $xmlContent += '      <ExcludeApp ID="Bing" />'
+            
+            $allApps = 1..10
+            foreach ($appNum in $allApps) {
                 if ($appNum -notin $script:SelectedApps) {
                     $xmlContent += "      <ExcludeApp ID=`"$($appMap[$appNum])`" />"
                 }
             }
+            
+            $xmlContent += '    </Product>'
+            $xmlContent += '  </Add>'
+            $xmlContent += '  <MigrateArchitecture>TRUE</MigrateArchitecture>'
         }
         
-        $xmlContent += '    </Product>'
-        $xmlContent += '  </Add>'
-        
-        if ($script:RemoveMSI) {
-            $xmlContent += '  <RemoveMSI />'
-        }
-        
-        $xmlContent += '  <MigrateArchitecture>TRUE</MigrateArchitecture>'
-        $xmlContent += '  <Property Name="SharedComputerLicensing" Value="0" />'
         $xmlContent += '  <Display Level="None" AcceptEULA="TRUE" />'
         $xmlContent += '  <Property Name="AUTOACTIVATE" Value="1" />'
         $xmlContent += '  <Property Name="FORCEAPPSHUTDOWN" Value="TRUE" />'
@@ -126,35 +141,21 @@ function Start-Installation {
         $p = [System.Diagnostics.Process]::Start($psi)
         
         $barLength = 40
-        $targetSize = 0
-        $downloaded = 0
+        $totalSize = 1600MB
+        $lastPercent = -1
         
         while (-not $p.HasExited) {
-            $cabFiles = Get-ChildItem "$env:TEMP\*.cab" -ErrorAction SilentlyContinue | Where-Object { $_.Name -match "stream" -and $_.Length -gt 0 }
-            
-            if ($cabFiles.Count -gt 0 -and $targetSize -eq 0) {
-                foreach ($file in $cabFiles) {
-                    try {
-                        $content = [System.IO.File]::ReadAllText($file.FullName) -replace "`0", ""
-                        if ($content -match "url=(.*?\.cab)") {
-                            $head = Invoke-WebRequest -Uri $matches[1] -Method Head -UseBasicParsing -ErrorAction SilentlyContinue
-                            if ($head.Headers.'Content-Length') {
-                                $targetSize = [int]$head.Headers.'Content-Length'
-                                break
-                            }
-                        }
-                    } catch {}
-                }
-            }
-            
             $downloaded = 0
             $cabFiles = Get-ChildItem "$env:TEMP\*.cab" -ErrorAction SilentlyContinue | Where-Object { $_.Name -match "stream" }
+            
             foreach ($file in $cabFiles) {
                 $downloaded += $file.Length
             }
             
-            if ($targetSize -gt 0 -and $downloaded -gt 0) {
-                $percent = [math]::Min(99, [math]::Round(($downloaded / $targetSize) * 100))
+            $percent = [math]::Min(99, [math]::Round(($downloaded / $totalSize) * 100))
+            
+            if ($percent -ne $lastPercent) {
+                $lastPercent = $percent
                 $filled = [math]::Floor(($percent / 100) * $barLength)
                 $bar = ""
                 for ($i = 0; $i -lt $barLength; $i++) {
@@ -162,10 +163,7 @@ function Start-Installation {
                 }
                 
                 $downloadedMB = [math]::Round($downloaded / 1MB, 1)
-                $totalMB = [math]::Round($targetSize / 1MB, 1)
-                Write-Host "`rЗагрузка: [$bar] $percent%  ${downloadedMB}MB/${totalMB}MB" -ForegroundColor Cyan -NoNewline
-            } else {
-                Write-Host "`rЗагрузка: [$('░'*$barLength)] 0%   0MB/??MB" -ForegroundColor Cyan -NoNewline
+                Write-Host "`rЗагрузка: [$bar] $percent%  ${downloadedMB}MB/1600MB" -ForegroundColor Cyan -NoNewline
             }
             
             Start-Sleep -Milliseconds 500
@@ -173,12 +171,7 @@ function Start-Installation {
         
         $exitCode = $p.ExitCode
         
-        if ($targetSize -gt 0) {
-            Write-Host "`rЗагрузка: [$('█'*$barLength)] 100%  $([math]::Round($downloaded/1MB,1))MB/$([math]::Round($targetSize/1MB,1))MB" -ForegroundColor Green
-        } else {
-            Write-Host "`rЗагрузка: [$('█'*$barLength)] 100%  " -ForegroundColor Green
-        }
-        
+        Write-Host "`rЗагрузка: [$('█'*$barLength)] 100%  1600MB/1600MB" -ForegroundColor Green
         Write-Host ""
         Write-Host ""
         
@@ -212,7 +205,7 @@ function Start-Installation {
     } while ($true)
 }
 
-$script:RemoveMSI = $false
+$script:FullInstall = $false
 $script:ModeName = ""
 $script:InstallAll = $false
 $script:SelectedApps = @()
