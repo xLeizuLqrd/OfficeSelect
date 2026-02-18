@@ -72,8 +72,8 @@ function Show-MainMenu {
     Write-Host "[3] PowerPoint [4] Outlook" -ForegroundColor Yellow
     Write-Host "[5] Access     [6] Publisher" -ForegroundColor Yellow
     Write-Host "[7] OneNote    [8] OneDrive" -ForegroundColor Yellow
-    Write-Host "[9] Teams      [10] Lync" -ForegroundColor Yellow
-    Write-Host "[0] Назад" -ForegroundColor Yellow
+    Write-Host "[9] Teams      [10] Groove" -ForegroundColor Yellow
+    Write-Host "[11] Lync      [0] Назад" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "Просто Enter - установить все программы" -ForegroundColor Gray
     Write-Host "РЕЖИМ: $($script:ModeName)" -ForegroundColor Cyan
@@ -94,26 +94,26 @@ function Show-MainMenu {
         Write-Host "ВЫБРАНЫ ВСЕ ПРОГРАММЫ" -ForegroundColor Yellow
         Write-Host "========================================" -ForegroundColor Cyan
         Write-Host ""
-        Write-Host "Будет установлено все 10 программ Office"
+        Write-Host "Будет установлено все 11 программ Office"
         Write-Host ""
         Start-Sleep -Seconds 2
         $script:InstallAll = $true
-        $script:SelectedApps = @(1..10)
+        $script:SelectedApps = @(1..11)
     } else {
         if ($input -match '^[0-9\s]+$') {
             $script:InstallAll = $false
-            $script:SelectedApps = $input -split '\s+' | ForEach-Object { [int]$_ } | Where-Object { $_ -ge 1 -and $_ -le 10 }
+            $script:SelectedApps = $input -split '\s+' | ForEach-Object { [int]$_ } | Where-Object { $_ -ge 1 -and $_ -le 11 }
             
             if ($script:SelectedApps.Count -eq 0) {
                 Write-Host "Ошибка: Неверный ввод!" -ForegroundColor Red
-                Write-Host "Вводите только цифры от 1 до 10 через пробел!" -ForegroundColor Yellow
+                Write-Host "Вводите только цифры от 1 до 11 через пробел!" -ForegroundColor Yellow
                 Start-Sleep -Seconds 3
                 Show-MainMenu
                 return
             }
         } else {
             Write-Host "Ошибка: Неверный формат ввода!" -ForegroundColor Red
-            Write-Host "Вводите только цифры от 1 до 10 через пробел!" -ForegroundColor Yellow
+            Write-Host "Вводите только цифры от 1 до 11 через пробел!" -ForegroundColor Yellow
             Start-Sleep -Seconds 3
             Show-MainMenu
             return
@@ -161,10 +161,11 @@ function Create-Configuration {
             7 = "OneNote"
             8 = "OneDrive"
             9 = "Teams"
-            10 = "Lync"
+            10 = "Groove"
+            11 = "Lync"
         }
         
-        $allApps = 1..10
+        $allApps = 1..11
         foreach ($appNum in $allApps) {
             if ($appNum -notin $script:SelectedApps) {
                 $xmlContent += "      <ExcludeApp ID=`"$($appMap[$appNum])`" />"
@@ -218,7 +219,7 @@ function Start-Installation {
     
     try {
         Write-Host "1. Скачивание Office Deployment Tool..." -ForegroundColor Gray
-        $odtUrl = "https://download.microsoft.com/download/6c1eeb25-cf8b-41d9-8d0d-cc1dbc032140/officedeploymenttool_19628-20192.exe"
+        $odtUrl = "https://download.microsoft.com/download/6c1eeb25-cf8b-41d9-8d0d-cc1dbc032140/officedeploymenttool_19426-20170.exe"
         $odtPath = Join-Path $workDir "ODTSetup.exe"
         
         $progressPreference = 'SilentlyContinue'
@@ -276,6 +277,11 @@ function Start-Installation {
             Write-Host "   ⚠ Office уже установлен или обновлен" -ForegroundColor Yellow
         } else {
             Write-Host "   ✗ Ошибка установки (код: $exitCode)" -ForegroundColor Red
+            Write-Host "`nВозможные решения:" -ForegroundColor Yellow
+            Write-Host "1. Закройте все программы Office" -ForegroundColor Yellow
+            Write-Host "2. Отключите антивирус на время установки" -ForegroundColor Yellow
+            Write-Host "3. Удалите старый Office перед установкой" -ForegroundColor Yellow
+            Write-Host "4. Проверьте свободное место на диске" -ForegroundColor Yellow
         }
         
     } catch {
